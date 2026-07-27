@@ -20,7 +20,7 @@ on:
         type: boolean
         default: true
   push:
-    branches: [selfhost-docker]
+    branches: [master, selfhost-docker]
     paths:
       - 'selfhost/**'
       - '.github/workflows/build-selfhost-images.yml'
