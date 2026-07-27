@@ -32,8 +32,12 @@ COPY . .
 WORKDIR /src/deps/publish
 # Emits worker/dist/worker/main.js, exporting both the worker and the
 # PublishMetaDO Durable Object class.
-RUN pnpm install --frozen-lockfile \
- && pnpm release \
+# --ignore-workspace for the same reason as deps/db-sync: deps/publish is not a
+# member of the root pnpm workspace, so without it resolution walks upward and
+# node_modules never lands here.
+RUN pnpm install --frozen-lockfile --ignore-workspace \
+ && test -d node_modules || { echo "ERROR: node_modules not in deps/publish"; ls -la; exit 1; }
+RUN pnpm release \
  && test -f worker/dist/worker/main.js || { echo "ERROR: worker bundle not produced"; ls -la worker/dist 2>/dev/null; exit 1; }
 
 # ── Runtime ──────────────────────────────────────────────────────────────────
