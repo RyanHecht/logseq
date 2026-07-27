@@ -61,10 +61,15 @@ RUN sed -i 's#<head>#<head><script src="/seed-defaults.js"></script>#' /usr/shar
  && grep -q 'seed-defaults.js' /usr/share/nginx/html/index.html \
     || { echo "ERROR: failed to inject seed script into index.html"; exit 1; }
 
-# Mount points for the seed files, served via nginx alias from /config.
-# They exist in the image so a read-only container can mount over them, and both
-# are optional: an empty directory yields a 404, which the seed script ignores.
+# Seed sources. Both optional; an absent file yields a 404 the seed script
+# ignores. The mount points exist in the image so a read-only container can
+# mount over them.
 RUN mkdir -p /config/defaults /config/secrets
+
+# Assembles /tmp/seed before nginx starts, from LOGSEQ_REFRESH_TOKEN or the
+# mounted config directories. Runs from nginx's own entrypoint.d convention.
+COPY selfhost/webapp/20-seed-config.sh /docker-entrypoint.d/20-seed-config.sh
+RUN chmod +x /docker-entrypoint.d/20-seed-config.sh
 
 EXPOSE 80
 
