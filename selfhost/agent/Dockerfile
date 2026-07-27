@@ -39,6 +39,20 @@ RUN printf '#!/bin/sh\nexec node /opt/logseq/logseq-cli.js "$@"\n' > /usr/local/
 # Copilot CLI — what the agent bridge dispatches tasks to.
 RUN npm install -g @github/copilot
 
+# `logseq login` runs a browser OAuth flow: it shells out to xdg-open on Linux
+# and waits for a callback on fixed port 8765. A container has no browser, and
+# the CLI does not print the authorize URL, so login would hang with nothing to
+# act on.
+#
+# This shim makes xdg-open print the URL instead. Publish port 8765 and open the
+# printed URL in any browser that can reach it:
+#
+#   docker run --rm -it -p 8765:8765 -v ./auth:/root/logseq <image> login
+RUN printf '#!/bin/sh\necho\necho "Open this URL to continue login:"\necho "$1"\necho\n' > /usr/local/bin/xdg-open \
+ && chmod +x /usr/local/bin/xdg-open
+
+EXPOSE 8765
+
 ENV LOGSEQ_CLI_ROOT_DIR=/graph
 WORKDIR /graph
 VOLUME ["/graph"]
