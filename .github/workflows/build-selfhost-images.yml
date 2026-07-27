@@ -1,12 +1,16 @@
 # Builds the container images needed to self-host Logseq's DB version, and
 # publishes them to GHCR so a compose stack can pull rather than build locally.
 #
+#   ghcr.io/<owner>/logseq-webapp  : web frontend, built from THIS repo
 #   ghcr.io/<owner>/logseq-db-sync : self-hosted sync server (deps/db-sync)
 #   ghcr.io/<owner>/logseq-agent   : Logseq CLI + db-worker-node + agent bridge
 #
-# Together with the existing logseq-webapp image (build-docker.yml), these cover
-# a full self-hosted deployment: web frontend, sync server, and an always-on
-# replica for running `logseq agent bridge`.
+# Together these cover a full self-hosted deployment: web frontend, sync server,
+# and an always-on replica for running `logseq agent bridge`.
+#
+# The webapp image is built here rather than by build-docker.yml because that
+# workflow's Dockerfile clones logseq/logseq master and ignores its build
+# context, so it cannot produce an image of a fork or an unreleased branch.
 #
 # Toolchain versions are intentionally kept in sync with deps-cli.yml.
 
@@ -27,7 +31,10 @@ on:
       - 'cli/**'
       - 'deps/db-sync/**'
       - 'src/main/logseq/cli/**'
-      - 'src/main/frontend/worker/**'
+      - 'src/main/frontend/**'
+      - 'src/resources/**'
+      - 'Dockerfile'
+      - 'package.json'
 
 env:
   CLOJURE_VERSION: '1.12.4.1618'
@@ -40,6 +47,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  # ── Web frontend ───────────────────────────────────────────────────────────
+  # Full ClojureScript release build, so this is the slowest job here.
+  webapp:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve lowercase image owner
+        run: echo "IMAGE_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ inputs.push || github.event_name == 'push' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: selfhost/webapp/Dockerfile
+          platforms: linux/amd64
+          push: ${{ inputs.push || github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/logseq-webapp:latest
+            ghcr.io/${{ env.IMAGE_OWNER }}/logseq-webapp:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ── Sync server ────────────────────────────────────────────────────────────
   # Builds inside the Dockerfile on purpose: better-sqlite3 is a native module

@@ -9,11 +9,19 @@ bridge, but no published images for either. These Dockerfiles fill that gap.
 
 | Image | Source | Purpose |
 |---|---|---|
-| `logseq-webapp` | `Dockerfile` (repo root) | Static web frontend |
+| `logseq-webapp` | `selfhost/webapp/Dockerfile` | Static web frontend |
 | `logseq-db-sync` | `selfhost/db-sync/Dockerfile` | Self-hosted sync server (`deps/db-sync`) |
 | `logseq-agent` | `selfhost/agent/Dockerfile` | CLI + `db-worker-node`, for `logseq agent bridge` |
 
-Built and published by `.github/workflows/build-selfhost-images.yml`.
+All three are built and published by
+`.github/workflows/build-selfhost-images.yml`.
+
+> **Why not the root `Dockerfile`?** It runs
+> `git clone -b master https://github.com/logseq/logseq.git` and discards its
+> build context, so it always produces upstream master regardless of which
+> repository, fork, or branch invokes it. It also still pins Java 11 while the
+> repo declares Java 21. `selfhost/webapp/Dockerfile` builds the checked-out
+> source instead.
 
 ## Architecture note
 
