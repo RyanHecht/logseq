@@ -657,8 +657,13 @@
                  (db-sync/<rtc-download-graph! "db1" "graph-1" true))
                (p/then (fn [_]
                          (is (empty? @runtime-rebind-calls))
-                         (is (= :thread-api/db-sync-download-graph-by-id
+                         ;; The runtime rebind is Electron-only, but the worker
+                         ;; authenticates the download from its own state, so
+                         ;; auth still has to be synced first.
+                         (is (= :thread-api/sync-app-state
                                 (ffirst @worker-calls)))
+                         (is (= :thread-api/db-sync-download-graph-by-id
+                                (first (second @worker-calls))))
                          (done)))
                (p/catch (fn [error]
                           (is false (str error))
