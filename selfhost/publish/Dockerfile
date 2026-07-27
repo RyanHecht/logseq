@@ -57,6 +57,9 @@ COPY --from=build /src/deps/publish/worker/dist ./dist
 # wrangler fails at startup with: Could not resolve "mldoc".
 COPY --from=build /src/deps/publish/node_modules ./node_modules
 COPY selfhost/publish/wrangler.toml ./wrangler.toml
+# Translates container env vars into worker bindings; see the script header.
+COPY selfhost/publish/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 # Durable Object and R2 state. Persisted here so published pages survive a
 # container recreate.
@@ -68,6 +71,7 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8787/').then(()=>process.exit(0)).catch(()=>process.exit(1))"
 
-# --ip 0.0.0.0 so the container is reachable; wrangler binds localhost otherwise.
-# --persist-to keeps DO + R2 state on the mounted volume.
-CMD ["sh", "-c", "wrangler dev --ip 0.0.0.0 --port 8787 --persist-to ${WRANGLER_STATE_DIR} --config wrangler.toml"]
+# The entrypoint writes .dev.vars from the environment, then execs wrangler with
+# --ip 0.0.0.0 (wrangler binds localhost otherwise) and --persist-to so the
+# Durable Object and R2 state land on the mounted volume.
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

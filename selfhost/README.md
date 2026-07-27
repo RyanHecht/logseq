@@ -94,7 +94,12 @@ docker run -d --name logseq-publish \
 
 Then set **Publish server URL** in the client.
 
-> Never set `DEV_SKIP_AUTH` — it bypasses JWT verification entirely.
+> `DEV_SKIP_AUTH` is documented in `deps/publish/worker/README.md` but is not
+> read by any current code path, so it has no effect. Auth cannot be disabled.
+
+These are read at container start and written to `.dev.vars`, because wrangler
+does not forward the host environment into the worker's `env` object. Omitting
+any of the three fails fast at startup rather than 500ing on the first publish.
 
 ## Running the sync server
 

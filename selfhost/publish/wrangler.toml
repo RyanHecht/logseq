@@ -28,6 +28,11 @@ new_sqlite_classes = ["PublishMetaDO"]
 binding = "PUBLISH_R2"
 bucket_name = "logseq-publish-local"
 
-# Cognito values are supplied as environment variables by the compose stack, so
-# they are not duplicated here. DEV_SKIP_AUTH must never be set: it bypasses JWT
-# verification entirely.
+# Cognito values are intentionally not hardcoded here so the stack can point at a
+# different user pool. They are injected at startup by docker-entrypoint.sh, which
+# writes them to .dev.vars.
+#
+# They cannot simply be set in the container environment: wrangler does not pass
+# the host process environment into the worker's `env` object, so `env.COGNITO_*`
+# would be undefined and every authenticated request would fail with
+# "iss not found".
