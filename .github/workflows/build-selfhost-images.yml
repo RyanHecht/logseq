@@ -124,6 +124,11 @@ jobs:
       - name: Fetch pnpm deps
         run: pnpm install --frozen-lockfile
 
+      # cli/ is not a pnpm workspace member, so the root install does not
+      # populate cli/node_modules and `pnpm --dir cli bundle` cannot find vite.
+      - name: Fetch CLI pnpm deps
+        run: pnpm --dir cli install --frozen-lockfile --ignore-workspace
+
       - name: Build CLI and db-worker-node
         run: |
           opam exec -- pnpm cli:release

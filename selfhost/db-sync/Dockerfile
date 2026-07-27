@@ -24,8 +24,16 @@ WORKDIR /src
 COPY . .
 
 WORKDIR /src/deps/db-sync
-RUN pnpm install --frozen-lockfile \
- && pnpm build:node-adapter
+# --ignore-workspace: the repo root has a pnpm-workspace.yaml, and deps/db-sync
+# is not a member of it. Without this, pnpm resolves upward and node_modules
+# does not land here, which breaks the COPY into the runtime stage.
+RUN pnpm install --frozen-lockfile --ignore-workspace \
+ && test -d node_modules || { \
+      echo "ERROR: node_modules not in /src/deps/db-sync after install"; \
+      ls -la /src/deps/db-sync; ls -la /src | head -30; exit 1; }
+RUN pnpm build:node-adapter \
+ && test -f worker/dist/node-adapter.js || { \
+      echo "ERROR: node-adapter.js not produced"; ls -la worker/dist || true; exit 1; }
 
 # ── Runtime ──────────────────────────────────────────────────────────────────
 FROM node:24-bookworm-slim
