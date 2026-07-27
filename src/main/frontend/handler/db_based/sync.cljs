@@ -141,7 +141,13 @@
     (p/let [_ (persist-db/<fetch-init-data repo {:sync-download-graph? true})
             _ (<sync-auth-state-to-db-worker!)]
       nil)
-    (p/resolved nil)))
+    ;; Browser and mobile have no init-data step, but the worker still needs
+    ;; auth state before it can authenticate the download. Without this the
+    ;; worker only receives tokens via the reactive app-state flow, which is
+    ;; published fire-and-forget and can lose the race, failing the download
+    ;; with "Empty token".
+    (p/let [_ (<sync-auth-state-to-db-worker!)]
+      nil)))
 
 (defn- <ensure-user-rsa-keys-on-server!
   [{:keys [server-rsa-keys-exists?]}]
