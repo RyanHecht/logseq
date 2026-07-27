@@ -47,6 +47,16 @@ COPY --from=builder /data/static /usr/share/nginx/html
 # is not content-hashed and otherwise survives a deploy for hours.
 COPY selfhost/webapp/default.conf /etc/nginx/conf.d/default.conf
 
+# Seed per-browser localStorage defaults (sync server URL, theme, telemetry) so
+# a new browser or device is usable without manual setup. The defaults file is
+# supplied at runtime by mounting over /usr/share/nginx/html/web-defaults.json;
+# a placeholder ships so the fetch does not 404 when nothing is mounted.
+COPY selfhost/webapp/seed-defaults.js /usr/share/nginx/html/seed-defaults.js
+RUN printf '{"raw":{},"edn":{}}\n' > /usr/share/nginx/html/web-defaults.json \
+ && sed -i 's#<head>#<head><script src="/seed-defaults.js"></script>#' /usr/share/nginx/html/index.html \
+ && grep -q 'seed-defaults.js' /usr/share/nginx/html/index.html \
+    || { echo "ERROR: failed to inject seed script into index.html"; exit 1; }
+
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
