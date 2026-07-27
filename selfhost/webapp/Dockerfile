@@ -57,10 +57,14 @@ COPY selfhost/webapp/default.conf /etc/nginx/conf.d/default.conf
 # authenticating proxy, since its contents are served to every browser that can
 # load the page.
 COPY selfhost/webapp/seed-defaults.js /usr/share/nginx/html/seed-defaults.js
-RUN printf '{"raw":{},"edn":{}}\n' > /usr/share/nginx/html/web-defaults.json \
- && sed -i 's#<head>#<head><script src="/seed-defaults.js"></script>#' /usr/share/nginx/html/index.html \
+RUN sed -i 's#<head>#<head><script src="/seed-defaults.js"></script>#' /usr/share/nginx/html/index.html \
  && grep -q 'seed-defaults.js' /usr/share/nginx/html/index.html \
     || { echo "ERROR: failed to inject seed script into index.html"; exit 1; }
+
+# Mount points for the seed files, served via nginx alias from /config.
+# They exist in the image so a read-only container can mount over them, and both
+# are optional: an empty directory yields a 404, which the seed script ignores.
+RUN mkdir -p /config/defaults /config/secrets
 
 EXPOSE 80
 
