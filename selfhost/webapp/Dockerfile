@@ -48,9 +48,14 @@ COPY --from=builder /data/static /usr/share/nginx/html
 COPY selfhost/webapp/default.conf /etc/nginx/conf.d/default.conf
 
 # Seed per-browser localStorage defaults (sync server URL, theme, telemetry) so
-# a new browser or device is usable without manual setup. The defaults file is
-# supplied at runtime by mounting over /usr/share/nginx/html/web-defaults.json;
-# a placeholder ships so the fetch does not 404 when nothing is mounted.
+# a new browser or device is usable without manual setup. Deployments mount
+# their own /usr/share/nginx/html/web-defaults.json; a placeholder ships so the
+# fetch does not 404 when nothing is mounted.
+#
+# The script also reads an OPTIONAL /web-secrets.json, which is deliberately NOT
+# shipped: a 404 is the correct default. Only mount one behind an
+# authenticating proxy, since its contents are served to every browser that can
+# load the page.
 COPY selfhost/webapp/seed-defaults.js /usr/share/nginx/html/seed-defaults.js
 RUN printf '{"raw":{},"edn":{}}\n' > /usr/share/nginx/html/web-defaults.json \
  && sed -i 's#<head>#<head><script src="/seed-defaults.js"></script>#' /usr/share/nginx/html/index.html \

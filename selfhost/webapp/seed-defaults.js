@@ -5,8 +5,16 @@
  * device starts unconfigured — most importantly without a sync server URL,
  * which is what points the app at a self-hosted server.
  *
- * This runs before the app boots and fills in defaults from
- * /web-defaults.json.
+ * This runs before the app boots and fills in defaults from two files:
+ *
+ *   /web-defaults.json  non-secret settings (sync URL, theme). Safe to commit.
+ *   /web-secrets.json   OPTIONAL. Credentials, e.g. an auth refresh token.
+ *                       Absent by default; a 404 is treated as "nothing to do".
+ *
+ * SECURITY: anything in web-secrets.json is served to every browser that can
+ * load this page. A Logseq refresh token is a long-lived credential for the
+ * whole account. Only deploy that file behind an authenticating proxy, and
+ * never commit it.
  *
  * Rules:
  *  - Only ever writes a key that is currently absent. Anything the user has
@@ -23,7 +31,8 @@
 (function () {
   "use strict";
 
-  var URL = "/web-defaults.json";
+  var DEFAULTS_URL = "/web-defaults.json";
+  var SECRETS_URL = "/web-secrets.json";
 
   function seed(group) {
     if (!group || typeof group !== "object") return 0;
@@ -43,19 +52,32 @@
     return n;
   }
 
-  try {
-    var req = new XMLHttpRequest();
+  function load(url) {
     // Synchronous on purpose: these values must be present before the app
-    // reads them at boot. The file is tiny and same-origin.
-    req.open("GET", URL, false);
+    // reads them at boot. The files are tiny and same-origin.
+    var req = new XMLHttpRequest();
+    req.open("GET", url, false);
     req.send(null);
+    if (req.status < 200 || req.status >= 300) return null;
+    return JSON.parse(req.responseText);
+  }
 
-    if (req.status < 200 || req.status >= 300) return;
+  var n = 0;
 
-    var defaults = JSON.parse(req.responseText);
-    var n = seed(defaults.raw) + seed(defaults.edn);
-    if (n > 0) console.info("[logseq-selfhost] seeded " + n + " default setting(s)");
+  try {
+    var defaults = load(DEFAULTS_URL);
+    if (defaults) n += seed(defaults.raw) + seed(defaults.edn);
   } catch (e) {
     console.warn("[logseq-selfhost] could not seed defaults:", e && e.message);
   }
+
+  try {
+    // Optional. Missing or unreadable is the normal, expected case.
+    var secrets = load(SECRETS_URL);
+    if (secrets) n += seed(secrets.raw) + seed(secrets.edn);
+  } catch (e) {
+    /* no secrets file deployed */
+  }
+
+  if (n > 0) console.info("[logseq-selfhost] seeded " + n + " setting(s)");
 })();
