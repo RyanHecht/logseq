@@ -1,0 +1,33 @@
+# Wrangler config for running the publish worker locally, outside Cloudflare.
+#
+# Differs from deps/publish/worker/wrangler.toml in three ways:
+#   - bucket renamed to a local-only name (nothing is created in Cloudflare)
+#   - observability off (it reports to Cloudflare)
+#   - main points at the runtime image's layout rather than the repo's
+#
+# Bindings themselves are unchanged: Wrangler emulates the Durable Object with
+# local SQLite and R2 with local storage, both persisted via --persist-to.
+
+name = "logseq-publish-selfhost"
+main = "dist/worker/main.js"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = false
+
+[[durable_objects.bindings]]
+name = "PUBLISH_META_DO"
+class_name = "PublishMetaDO"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PublishMetaDO"]
+
+[[r2_buckets]]
+binding = "PUBLISH_R2"
+bucket_name = "logseq-publish-local"
+
+# Cognito values are supplied as environment variables by the compose stack, so
+# they are not duplicated here. DEV_SKIP_AUTH must never be set: it bypasses JWT
+# verification entirely.

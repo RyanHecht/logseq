@@ -4,6 +4,7 @@
 #   ghcr.io/<owner>/logseq-webapp  : web frontend, built from THIS repo
 #   ghcr.io/<owner>/logseq-db-sync : self-hosted sync server (deps/db-sync)
 #   ghcr.io/<owner>/logseq-agent   : Logseq CLI + db-worker-node + agent bridge
+#   ghcr.io/<owner>/logseq-publish : publish worker on Wrangler's local runtime
 #
 # Together these cover a full self-hosted deployment: web frontend, sync server,
 # and an always-on replica for running `logseq agent bridge`.
@@ -30,6 +31,7 @@ on:
       - '.github/workflows/build-selfhost-images.yml'
       - 'cli/**'
       - 'deps/db-sync/**'
+      - 'deps/publish/**'
       - 'src/main/logseq/cli/**'
       - 'src/main/frontend/**'
       - 'src/resources/**'
@@ -124,6 +126,46 @@ jobs:
           tags: |
             ghcr.io/${{ env.IMAGE_OWNER }}/logseq-db-sync:latest
             ghcr.io/${{ env.IMAGE_OWNER }}/logseq-db-sync:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Publish server ─────────────────────────────────────────────────────────
+  # deps/publish is a Cloudflare Worker. Wrangler runs it locally via workerd
+  # with no Cloudflare account, emulating the Durable Object and R2 bucket, so
+  # the upstream source is used unmodified.
+  publish:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve lowercase image owner
+        run: echo "IMAGE_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ inputs.push || github.event_name == 'push' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: selfhost/publish/Dockerfile
+          platforms: linux/amd64
+          push: ${{ inputs.push || github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/logseq-publish:latest
+            ghcr.io/${{ env.IMAGE_OWNER }}/logseq-publish:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
