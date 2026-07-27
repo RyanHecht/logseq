@@ -54,8 +54,8 @@
 
     var defaults = JSON.parse(req.responseText);
     var n = seed(defaults.raw) + seed(defaults.edn);
-    if (n > 0) console.info("[ryanOS] seeded " + n + " default setting(s)");
+    if (n > 0) console.info("[logseq-selfhost] seeded " + n + " default setting(s)");
   } catch (e) {
-    console.warn("[ryanOS] could not seed defaults:", e && e.message);
+    console.warn("[logseq-selfhost] could not seed defaults:", e && e.message);
   }
 })();
