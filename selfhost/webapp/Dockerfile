@@ -42,6 +42,10 @@ COPY --from=builder /data/static /usr/share/nginx/html
 
 # The app uses fragment routing (`rfe/start!` with :use-fragment true), so every
 # route is served from / and no SPA history fallback is required.
+#
+# The config exists to stop CDNs and browsers pinning a stale /js/main.js, which
+# is not content-hashed and otherwise survives a deploy for hours.
+COPY selfhost/webapp/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
