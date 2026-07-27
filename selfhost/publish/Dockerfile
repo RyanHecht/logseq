@@ -48,6 +48,10 @@ RUN npm install -g wrangler@${WRANGLER_VERSION} \
 
 WORKDIR /app
 COPY --from=build /src/deps/publish/worker/dist ./dist
+# shadow-cljs builds this target with :js-provider :import, so npm packages stay
+# as external imports in the bundle (mldoc, etc). Without node_modules present,
+# wrangler fails at startup with: Could not resolve "mldoc".
+COPY --from=build /src/deps/publish/node_modules ./node_modules
 COPY selfhost/publish/wrangler.toml ./wrangler.toml
 
 # Durable Object and R2 state. Persisted here so published pages survive a
