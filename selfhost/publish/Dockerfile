@@ -44,6 +44,15 @@ RUN pnpm release \
 FROM node:24-bookworm-slim
 ARG WRANGLER_VERSION=4.114.0
 
+# workerd validates outbound TLS against the system CA store. Node compiles in
+# its own CA list, so the sibling Node images work without this, but workerd does
+# not — and node:*-slim ships no CA bundle at all. Without this the JWKS fetch in
+# verify-jwt fails with "TLS peer's certificate is not trusted" and every
+# authenticated request returns 500.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 # Pinned deliberately: `deps/publish` does not declare wrangler, so `pnpm exec`
 # would resolve a floating version at runtime and the worker runtime could change
 # under a rebuild.
